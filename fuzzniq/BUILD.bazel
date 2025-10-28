@@ -1,0 +1,24 @@
+
+cc_library(
+    name = "fuzzniq_matcher",
+    srcs = [
+        "matcher.cc",
+    ],
+    hdrs = [
+        "matcher.h",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@fmt",
+    ],
+)
+
+cc_binary(
+    name = "fuzzniq",
+    srcs = ["main.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":fuzzniq_matcher",
+        "@cli11",
+    ],
+)

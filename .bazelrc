@@ -1,0 +1,55 @@
+# Enable Bzlmod for every Bazel command
+common --enable_bzlmod
+
+# Default build with debug info
+build --copt -g
+build --strip=never
+
+# We support C++ 17
+build --host_cxxopt='-std=c++17'
+build --cxxopt='-std=c++17'
+
+build --cxxopt='-Wall'
+build --cxxopt='-Wdeprecated'
+build --cxxopt='-Wcomment'
+build --cxxopt='-Wimplicit-fallthrough'
+build --cxxopt='-Wnarrowing'
+build --cxxopt='-Wnull-dereference'
+build --cxxopt='-Wregister'
+build --cxxopt='-Wshift-count-negative'
+build --cxxopt='-Wshift-count-overflow'
+build --cxxopt='-Wint-to-pointer-cast'
+build --cxxopt='-Wodr'
+build --cxxopt='-Wno-sign-compare'
+build:clang --cxxopt='-Wshadow-all'
+build:clang --cxxopt='-Wcall-to-pure-virtual-from-ctor-dtor'
+build:clang --cxxopt='-Wdangling'
+build:clang --cxxopt='-Winteger-overflow'
+build:clang --cxxopt='-Winvalid-noreturn'
+build:clang --cxxopt='-Wnull-arithmetic'
+build:clang --cxxopt='-Wnull-conversion'
+build:clang --cxxopt='-Wunsequenced'
+build:clang --cxxopt='-Wunreachable-code-aggressive'
+build:clang --cxxopt='-Wvoid-pointer-to-int-cast'
+build:clang --cxxopt='-Wwritable-strings'
+build:clang --cxxopt='-Wmismatched-parameter-types'
+build:clang --cxxopt='-Wmismatched-return-types'
+build:clang --cxxopt='-fno-trigraphs'
+build:clang --cxxopt='-fno-digraphs'
+build:clang --cxxopt='-ffp-model=strict'
+
+# Common flags for Clang
+
+build:clang --action_env=BAZEL_COMPILER=clang
+build:clang --action_env=CC=clang --action_env=CXX=clang++
+build:clang --linkopt=-fuse-ld=lld
+
+# Clang with libc++
+
+build:libc++ --config=clang
+build:libc++ --action_env=CXXFLAGS=-stdlib=libc++
+build:libc++ --action_env=LDFLAGS=-stdlib=libc++
+build:libc++ --action_env=BAZEL_CXXOPTS=-stdlib=libc++
+build:libc++ --action_env=BAZEL_LINKLIBS=-l%:libc++.a:-l%:libc++abi.a
+build:libc++ --action_env=BAZEL_LINKOPTS=-lm:-pthread
+build:libc++ --define force_libcpp=enabled
