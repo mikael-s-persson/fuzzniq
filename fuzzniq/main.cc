@@ -99,6 +99,16 @@ int main(int argc, char** argv) {
   cli_fz.add_flag("-c,--count", arg_print_count,
                   "prefix output lines by the number of prior occurrences");
 
+  bool arg_print_score = false;
+  cli_fz.add_flag(
+      "-d,--distance", arg_print_score,
+      "prefix output lines by the edit distance to best matching line.\n"
+      "Note, this causes all lines to be printed, no filtering out.\n"
+      "Moreover, edit distances will have an upper-bound value if there\n"
+      "is no candidate to match against. This option is mostly for test\n"
+      "runs and tuning the threshold. Generally, setting a very high\n"
+      "threshold will help get more useful outputs.");
+
   bool arg_no_copy = false;
   cli_fz.add_flag("-n,--matches-only", arg_no_copy,
                   "only compare lines that match the regular expression, "
@@ -174,6 +184,7 @@ int main(int argc, char** argv) {
   params.threshold = arg_threshold;
   params.null_data = arg_null_data;
   params.print_count = arg_print_count;
+  params.print_score = arg_print_score;
   params.strict_order = arg_strict_order;
   params.strict_seq = arg_strict_seq;
   params.skip_marker = arg_skip_marker;

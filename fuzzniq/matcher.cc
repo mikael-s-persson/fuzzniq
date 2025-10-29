@@ -3,9 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
-#include <iterator>
 #include <limits>
-#include <memory>
 #include <regex>
 #include <string>
 #include <vector>
@@ -17,7 +15,7 @@ namespace fuzzniq {
 namespace {
 
 constexpr bool kDebugPrint = false;
-constexpr bool kDebugPrintSteps = false;
+constexpr bool kDebugPrintSteps = true;
 
 float ComputeLevenshteinDistance(const std::string& s, const std::string& t) {
   // create two work vectors of integer distances
@@ -103,6 +101,20 @@ float ComputeEditDistance(const std::string& s, const std::string& t,
   return std::numeric_limits<float>::infinity();
 }
 
+float MaxEditDistance(const std::string& s, Method method) {
+  switch (method) {
+    case Method::kNormalizedLevenshtein:
+      [[fallthrough]];
+    case Method::kNormalizedHamming:
+      return 1.0F;
+    case Method::kLevenshtein:
+      [[fallthrough]];
+    case Method::kHamming:
+      return static_cast<float>(s.size());
+  }
+  return std::numeric_limits<float>::infinity();
+}
+
 }  // namespace
 
 void Matcher::AddInputLine(std::string ln) {
@@ -121,113 +133,65 @@ void Matcher::AddInputLine(std::string ln) {
                 << std::endl;  // NOLINT(performance-avoid-endl)
     }
   }
-  float best_score = std::numeric_limits<float>::max();
+
+  float best_score = MaxEditDistance(ln_out, params_.method);
   int best_match = queue_.size();
-  int earliest_match = queue_.size();
-  int required_match = queue_.size();
-  for (int i = queue_.size() - 1;
-       i >=
-       std::max(0, static_cast<int>(queue_.size()) - params_.line_count - 1);
-       --i) {
-    if (queue_[i].offset_to_match > 0) {
-      if (params_.strict_seq) {
-        if (i + queue_[i].offset_to_match == queue_.size() - 1) {
-          // Earliest match needs to be next.
-          required_match = i + 1;
-        } else {
-          // No match, we can't skip.
-          best_match = queue_.size();
-        }
-        break;
+  int earliest_match =
+      std::max(0, static_cast<int>(queue_.size()) - params_.line_count);
+  int in_seq_match = earliest_match;
+  int new_seq_start = in_seq_match;
+  if (params_.strict_seq || params_.strict_order) {
+    // Find last matched entry.
+    for (int i = std::max(0, in_seq_match - params_.line_count);
+         i < queue_.size(); ++i) {
+      if (queue_[i].offset_to_match > 0) {
+        // Earliest match needs to be next, at least.
+        in_seq_match = i + 1;
+        new_seq_start = i + queue_[i].offset_to_match + 1;
       }
-      if (params_.strict_order) {
-        // Skipping the check would break ordering of earlier matches, so stop.
-        break;
-      }
-      // Skip this check, look for earlier ones.
-      continue;
     }
-    if (i + params_.line_count < queue_.size()) {
-      // We only go this far back to detect broken sequence, don't check for
-      // match.
-      break;
+    if (new_seq_start > earliest_match && new_seq_start < queue_.size()) {
+      in_seq_match = new_seq_start;
+    }
+  }
+  // Find first matched entry.
+  for (int i = in_seq_match; i < queue_.size(); ++i) {
+    if (queue_[i].offset_to_match > 0) {
+      continue;
     }
     // Check for match.
     const float score =
         ComputeEditDistance(ln_out, queue_[i].replaced, params_.method);
+    best_score = std::min(score, best_score);
     if (score <= params_.threshold) {
-      if (score <= best_score) {
-        best_score = score;
-        best_match = i;
-      }
-      earliest_match = i;
+      best_match = i;
+      break;
+    }
+    if (params_.strict_seq && new_seq_start > i) {
+      // Skip ahead to new sequence start.
+      i = new_seq_start - 1;
     }
   }
 
-  int prior_count = 0;
-  if (required_match < queue_.size()) {
-    // We require a specific match position to maintain sequence.
-    if (earliest_match == required_match) {
-      // The line at the required position did match, use that match.
-      prior_count = queue_[earliest_match].prior_count + 1;
-      queue_[earliest_match].offset_to_match = queue_.size() - earliest_match;
-    } else if (queue_[required_match].prior_count == 0) {
-      // The line at the required match does not match the top line,
-      // and it is not matched to prior lines, so, the sequence is broken.
-      int pred = required_match - 1;
-      queue_[pred + queue_[pred].offset_to_match].prior_count = 0;
-      queue_[pred].offset_to_match = 0;
-    }
-  }
   // If we have not used the earliest match (to preserve sequence), we use
   // the best match.
-  if (prior_count == 0 && best_match < queue_.size()) {
+  int prior_count = 0;
+  if (best_match < queue_.size()) {
     prior_count = queue_[best_match].prior_count + 1;
     queue_[best_match].offset_to_match = queue_.size() - best_match;
   }
 
   queue_.emplace_back(PendingLine{.original = std::move(ln),
                                   .replaced = std::move(ln_out),
-                                  .prior_count = prior_count});
+                                  .prior_count = prior_count,
+                                  .offset_to_match = 0,
+                                  .match_score = best_score});
 
   if constexpr (kDebugPrintSteps) {
     fmt::print(">>>>>>>>\n");
     for (const auto& p : queue_) {
-      fmt::print("{} ({}) {: 5d} {: 5d}\n", p.original, p.replaced,
-                 p.prior_count, p.offset_to_match);
-    }
-    fmt::print("========\n");
-  }
-
-  if (queue_.size() > 2 * params_.line_count &&
-      queue_[params_.line_count].prior_count != 0 &&
-      queue_[params_.line_count].offset_to_match == 0 &&
-      queue_[params_.line_count + 1].offset_to_match > 0) {
-    // Negate future matches, pattern has been broken here.
-
-    int p_beg = params_.line_count - 1;
-    for (; p_beg > 0; --p_beg) {
-      if (queue_[p_beg].prior_count != queue_[params_.line_count].prior_count) {
-        break;
-      }
-    }
-    ++p_beg;
-    for (int i = p_beg;
-         i < p_beg + params_.line_count &&
-         queue_[i].prior_count == queue_[params_.line_count].prior_count;
-         ++i) {
-      for (int j = i; queue_[j].offset_to_match > 0;) {
-        j += queue_[j].offset_to_match;
-        queue_[j].prior_count -= queue_[i].prior_count + 1;
-      }
-      queue_[i].offset_to_match = 0;
-    }
-  }
-
-  if constexpr (kDebugPrintSteps) {
-    for (const auto& p : queue_) {
-      fmt::print("{} ({}) {: 5d} {: 5d}\n", p.original, p.replaced,
-                 p.prior_count, p.offset_to_match);
+      fmt::print("{} ({}) {: 5d} {: 5d} {: 3.3f}\n", p.original, p.replaced,
+                 p.prior_count, p.offset_to_match, p.match_score);
     }
     fmt::print("<<<<<<<<\n");
   }
@@ -237,7 +201,8 @@ std::string Matcher::ConsumeOutputImpl(bool flush) {
   std::string ln;
   while (
       ((flush && !queue_.empty()) || queue_.size() > 2 * params_.line_count)) {
-    if ((queue_.front().offset_to_match == 0) || kDebugPrint) {
+    if ((queue_.front().offset_to_match == 0) || params_.print_score ||
+        kDebugPrint) {
       if (skipped_last_ && !params_.skip_marker.empty()) {
         ln.append(params_.skip_marker);
         ln.push_back(params_.null_data ? '\0' : '\n');
@@ -245,14 +210,21 @@ std::string Matcher::ConsumeOutputImpl(bool flush) {
       skipped_last_ = false;
       if (params_.print_count) {
         fmt::format_to(std::back_inserter(ln), " {: 6d} ",
-                       queue_.front().prior_count + 1);
+                       (queue_.front().offset_to_match > 0
+                            ? 0
+                            : queue_.front().prior_count + 1));
+      }
+      if (params_.print_score) {
+        fmt::format_to(std::back_inserter(ln), " {: 3.3f} ",
+                       queue_.front().match_score);
       }
       ln.append(std::move(queue_.front().original));
       if constexpr (kDebugPrint) {
-        fmt::format_to(std::back_inserter(ln), "   {} {} {: 5d} {: 5d}",
-                       (queue_.front().offset_to_match == 0 ? "<--" : "-->"),
-                       queue_.front().replaced, queue_.front().prior_count,
-                       queue_.front().offset_to_match);
+        fmt::format_to(
+            std::back_inserter(ln), "   {} {} {: 5d} {: 5d} {: 3.3f}",
+            (queue_.front().offset_to_match == 0 ? "<--" : "-->"),
+            queue_.front().replaced, queue_.front().prior_count,
+            queue_.front().offset_to_match, queue_.front().match_score);
       }
       ln.push_back(params_.null_data ? '\0' : '\n');
     }
@@ -268,13 +240,13 @@ std::string Matcher::ConsumeOutput() {
   return ConsumeOutputImpl(/*flush=*/false);
 }
 
-std::string Matcher::Flusher::ConsumeOutput() const {
-  return parent->ConsumeOutputImpl(/*flush=*/true);
+std::string Matcher::ConsumeAllOutputs() {
+  return ConsumeOutputImpl(/*flush=*/true);
 }
 
 std::istream& operator>>(std::istream& in, Matcher& matcher) {
   std::string ln;
-  std::getline(in, ln, matcher.params_.null_data ? '\0' : '\n');
+  std::getline(in, ln, matcher.Params().null_data ? '\0' : '\n');
   if (in) {
     matcher.AddInputLine(std::move(ln));
   }
@@ -286,7 +258,7 @@ std::ostream& operator<<(std::ostream& out, Matcher& matcher) {
 }
 
 std::ostream& operator<<(std::ostream& out, Matcher::Flusher matcher_flush) {
-  return out << matcher_flush.ConsumeOutput() << std::flush;
+  return out << matcher_flush.parent->ConsumeAllOutputs() << std::flush;
 }
 
 }  // namespace fuzzniq
