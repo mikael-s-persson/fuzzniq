@@ -15,7 +15,7 @@ namespace fuzzniq {
 namespace {
 
 constexpr bool kDebugPrint = false;
-constexpr bool kDebugPrintSteps = true;
+constexpr bool kDebugPrintSteps = false;
 
 float ComputeLevenshteinDistance(const std::string& s, const std::string& t) {
   // create two work vectors of integer distances
