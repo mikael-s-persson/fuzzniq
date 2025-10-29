@@ -182,6 +182,7 @@ int main(int argc, char** argv) {
   fuzzniq::MatcherParameters params;
   params.line_count = arg_line_count;
   params.threshold = arg_threshold;
+  params.ignore_case = arg_ignore_case;
   params.null_data = arg_null_data;
   params.print_count = arg_print_count;
   params.print_score = arg_print_score;

@@ -208,6 +208,8 @@ lines that match the regex (i.e., non-matching lines are always "unique").
 ### Reporting issues
 
 This is very experimental. There are bugs in this tool and library, I am sure of it.
+If the quality of the code in this repository doesn't make it obvious already, this
+is a "I was bored one day and made this" kind of a project, don't expect much.
 
 Please report any issues at: https://github.com/mikael-s-persson/fuzzniq/issues
 

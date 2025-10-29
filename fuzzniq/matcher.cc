@@ -1,6 +1,7 @@
 #include "fuzzniq/matcher.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <iostream>
 #include <limits>
@@ -17,7 +18,9 @@ namespace {
 constexpr bool kDebugPrint = false;
 constexpr bool kDebugPrintSteps = false;
 
-float ComputeLevenshteinDistance(const std::string& s, const std::string& t) {
+template <typename CompareChFunc>
+float ComputeLevenshteinDistance(const std::string& s, const std::string& t,
+                                 CompareChFunc eq_cmp) {
   // create two work vectors of integer distances
   std::vector<int> v0(t.size() + 1, 0);
   std::vector<int> v1(t.size() + 1, 0);
@@ -42,7 +45,7 @@ float ComputeLevenshteinDistance(const std::string& s, const std::string& t) {
       int deletion_cost = v0[j + 1] + 1;
       int insertion_cost = v1[j] + 1;
       int substitution_cost = 0;
-      if (s[i] == t[j]) {
+      if (eq_cmp(s[i], t[j])) {
         substitution_cost = v0[j];
       } else {
         substitution_cost = v0[j] + 1;
@@ -60,43 +63,53 @@ float ComputeLevenshteinDistance(const std::string& s, const std::string& t) {
   return static_cast<float>(v0[t.size()]);
 }
 
+template <typename CompareChFunc>
 float ComputeNormalizedLevenshteinDistance(const std::string& s,
-                                           const std::string& t) {
-  return ComputeLevenshteinDistance(s, t) /
+                                           const std::string& t,
+                                           CompareChFunc&& eq_cmp) {
+  return ComputeLevenshteinDistance(s, t, std::forward<CompareChFunc>(eq_cmp)) /
          static_cast<float>(std::max(s.size(), t.size()));
 }
 
-float ComputeHammingDistance(const std::string& s, const std::string& t) {
+template <typename CompareChFunc>
+float ComputeHammingDistance(const std::string& s, const std::string& t,
+                             CompareChFunc eq_cmp) {
   const auto len = std::min(s.size(), t.size());
   int dist_counter = std::abs(static_cast<int>(s.size() - t.size()));
   for (int i = 0; i < len; ++i) {
-    if (s[i] != t[i]) {
+    if (!eq_cmp(s[i], t[i])) {
       ++dist_counter;
     }
   }
   return static_cast<float>(dist_counter);
 }
 
+template <typename CompareChFunc>
 float ComputeNormalizedHammingDistance(const std::string& s,
-                                       const std::string& t) {
-  return ComputeHammingDistance(s, t) /
+                                       const std::string& t,
+                                       CompareChFunc&& eq_cmp) {
+  return ComputeHammingDistance(s, t, std::forward<CompareChFunc>(eq_cmp)) /
          static_cast<float>(std::max(s.size(), t.size()));
 }
 
+template <typename CompareChFunc>
 float ComputeEditDistance(const std::string& s, const std::string& t,
-                          Method method) {
+                          Method method, CompareChFunc&& eq_cmp) {
   if (s.empty() || t.empty()) {
     return std::numeric_limits<float>::infinity();
   }
   switch (method) {
     case Method::kNormalizedLevenshtein:
-      return ComputeNormalizedLevenshteinDistance(s, t);
+      return ComputeNormalizedLevenshteinDistance(
+          s, t, std::forward<CompareChFunc>(eq_cmp));
     case Method::kLevenshtein:
-      return ComputeLevenshteinDistance(s, t);
+      return ComputeLevenshteinDistance(s, t,
+                                        std::forward<CompareChFunc>(eq_cmp));
     case Method::kNormalizedHamming:
-      return ComputeNormalizedHammingDistance(s, t);
+      return ComputeNormalizedHammingDistance(
+          s, t, std::forward<CompareChFunc>(eq_cmp));
     case Method::kHamming:
-      return ComputeHammingDistance(s, t);
+      return ComputeHammingDistance(s, t, std::forward<CompareChFunc>(eq_cmp));
   }
   return std::numeric_limits<float>::infinity();
 }
@@ -134,6 +147,10 @@ void Matcher::AddInputLine(std::string ln) {
     }
   }
 
+  const auto eq_cmp = [icase = params_.ignore_case](char a, char b) {
+    return (a == b) || (icase && std::tolower(a) == std::tolower(b));
+  };
+
   float best_score = MaxEditDistance(ln_out, params_.method);
   int best_match = queue_.size();
   int earliest_match =
@@ -161,7 +178,7 @@ void Matcher::AddInputLine(std::string ln) {
     }
     // Check for match.
     const float score =
-        ComputeEditDistance(ln_out, queue_[i].replaced, params_.method);
+        ComputeEditDistance(ln_out, queue_[i].replaced, params_.method, eq_cmp);
     best_score = std::min(score, best_score);
     if (score <= params_.threshold) {
       best_match = i;

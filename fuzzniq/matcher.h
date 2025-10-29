@@ -1,6 +1,7 @@
 #ifndef FUZZNIQ_MATCHER_H_
 #define FUZZNIQ_MATCHER_H_
 
+#include <cassert>
 #include <cstdint>
 #include <deque>
 #include <iostream>
@@ -29,6 +30,7 @@ struct MatcherParameters {
   Method method = Method::kNormalizedLevenshtein;
   float threshold = 0.1F;
   int line_count = 1;
+  bool ignore_case = false;
   bool print_count = false;
   bool print_score = false;
   bool null_data = false;
@@ -100,7 +102,11 @@ struct MatcherParameters {
 // to extract the meaningful parts of the lines of text.
 class Matcher {
  public:
-  explicit Matcher(MatcherParameters params) : params_(std::move(params)) {}
+  explicit Matcher(MatcherParameters params) : params_(std::move(params)) {
+    // The regex should be consistent with ignore-case option.
+    assert(params_.ignore_case ==
+           ((params_.input_regex.flags() & std::regex_constants::icase) != 0));
+  }
 
   // Discard pending lines and reset the matcher.
   void Reset() {
