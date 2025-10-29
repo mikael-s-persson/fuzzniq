@@ -21,12 +21,14 @@ struct MatcherParameters {
   std::string input_regex_fmt;
   std::regex_constants::match_flag_type input_regex_flags =
       std::regex_constants::match_default;
+  std::string skip_marker;
   Method method = Method::kNormalizedLevenshtein;
   float threshold = 0.1F;
   int line_count = 1;
   bool print_count = false;
   bool null_data = false;
   bool strict_order = false;
+  bool strict_seq = false;
 };
 
 class Matcher {
@@ -34,11 +36,11 @@ class Matcher {
   explicit Matcher(MatcherParameters params) : params_(std::move(params)) {}
 
   void AddInputLine(std::string ln);
-  [[nodiscard]] std::string GetOutputLine();
+  [[nodiscard]] std::string ConsumeOutput();
 
   struct Flusher {
     Matcher* parent;
-    [[nodiscard]] std::string GetOutputLine() const;
+    [[nodiscard]] std::string ConsumeOutput() const;
   };
   [[nodiscard]] Flusher Flush() { return Flusher{this}; }
 
@@ -56,8 +58,9 @@ class Matcher {
   };
 
   std::deque<PendingLine> queue_;
+  bool skipped_last_ = false;
 
-  std::string GetOutputLineImpl(bool flush);
+  std::string ConsumeOutputImpl(bool flush);
 };
 
 std::istream& operator>>(std::istream& in, Matcher& matcher);

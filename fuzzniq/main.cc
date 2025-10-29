@@ -55,9 +55,9 @@ int main(int argc, char** argv) {
       "regex substitution pattern (ECMAScript), default: all");
 
   std::string arg_sed_substitution;
-  auto* opt_sed_substitution =
-      cli_fz.add_flag("-S,--sed", arg_sed_substitution,
-                      "regex substitution pattern (sed format), default: all");
+  auto* opt_sed_substitution = cli_fz.add_option(
+      "-S,--sed", arg_sed_substitution,
+      "regex substitution pattern (sed format), default: all");
   opt_sed_substitution->excludes(opt_ecma_substitution);
   opt_ecma_substitution->excludes(opt_sed_substitution);
 
@@ -67,13 +67,31 @@ int main(int argc, char** argv) {
                   "case sensitive");
 
   bool arg_strict_order = false;
-  cli_fz.add_flag("-O,--strict-order", arg_strict_order,
-                  "require multiline matches to be ordered, default is false");
+  cli_fz.add_flag(
+      "-O,--ordered", arg_strict_order,
+      "require multiline matches to be ordered, default is false.\n"
+      "For example, with 3-line window, without ordering, 'ABBAC'\n"
+      "would group together 'ABBA' since all those elements have a\n"
+      "match within 3 predecessors. With ordering enabled, only 'BB'\n"
+      "would be grouped together since the 'A' matches are not in\n"
+      "an order that is consistent with the 'B' matches.");
+
+  bool arg_strict_seq = false;
+  cli_fz.add_flag(
+      "-X,--sequenced", arg_strict_seq,
+      "require multiline matches to be sequenced, default is false.\n"
+      "For example, with 3-line window, without sequencing, 'ABCAC'\n"
+      "would all be group together since all those elements have a\n"
+      "match within 3 predecessors. With sequencing enabled, only 'ABCA'\n"
+      "would be grouped together since the 'C' breaks the repetition\n"
+      "of 'ABC' established prior. For efficiency, there is no attempt\n"
+      "to find for the longest repeating sequences.");
 
   std::string arg_method_str = "normalized_levenshtein";
   cli_fz
-      .add_option("-m,--method", arg_method_str,
-                  "regex matching pattern, default: all")
+      .add_option(
+          "-m,--method", arg_method_str,
+          "edit distance calculation method, default is normalized_levenshtein")
       ->check(CLI::IsMember({"normalized_levenshtein", "levenshtein",
                              "normalized_hamming", "hamming"}));
 
@@ -89,6 +107,10 @@ int main(int argc, char** argv) {
   bool arg_null_data = false;
   cli_fz.add_flag("-z,--null-data", arg_null_data,
                   "data lines end in 0 byte, not newline");
+
+  std::string arg_skip_marker;
+  cli_fz.add_option("-y,--skip-marker", arg_skip_marker,
+                    "line to print to mark skip points, default: none");
 
   try {
     cli_fz.parse(argc, argv);
@@ -153,6 +175,8 @@ int main(int argc, char** argv) {
   params.null_data = arg_null_data;
   params.print_count = arg_print_count;
   params.strict_order = arg_strict_order;
+  params.strict_seq = arg_strict_seq;
+  params.skip_marker = arg_skip_marker;
 
   std::string* regex_str = nullptr;
   std::regex_constants::syntax_option_type syntax_opt =
