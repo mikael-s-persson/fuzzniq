@@ -132,18 +132,28 @@ float MaxEditDistance(const std::string& s, Method method) {
 
 void Matcher::AddInputLine(std::string ln) {
   std::string ln_out;
-  if (params_.input_regex_fmt.empty()) {
-    if (std::regex_match(ln, params_.input_regex)) {
-      ln_out = ln;
+  std::smatch re_match;
+  std::regex_match(ln, re_match, params_.input_regex);
+  if (params_.print_regex_debug) {
+    std::cerr << "\nLINE: " << ln
+              << "\n  REGEX MATCH: " << (re_match.empty() ? "NO" : "YES");
+    if (!re_match.empty()) {
+      std::cerr << "\n    PREFIX: " << re_match.prefix();
+      for (auto& subm : re_match) {
+        std::cerr << "\n    SUBMATCH: " << subm;
+      }
+      std::cerr << "\n    SUFFIX: " << re_match.suffix();
     }
-  } else {
-    try {
+  }
+  if (!re_match.empty()) {
+    if (params_.input_regex_fmt.empty()) {
+      ln_out = ln;
+    } else {
       ln_out =
-          std::regex_replace(ln, params_.input_regex, params_.input_regex_fmt,
-                             params_.input_regex_flags);
-    } catch (const std::regex_error& e) {
-      std::cerr << "REGEX ERROR! Got: " << e.what()
-                << std::endl;  // NOLINT(performance-avoid-endl)
+          re_match.format(params_.input_regex_fmt, params_.input_regex_flags);
+    }
+    if (params_.print_regex_debug) {
+      std::cerr << "\n  SUBSTITUTED: " << ln_out;
     }
   }
 
@@ -249,6 +259,9 @@ std::string Matcher::ConsumeOutputImpl(bool flush) {
       skipped_last_ = true;
     }
     queue_.pop_front();
+  }
+  if (flush && params_.print_regex_debug) {
+    std::cerr << std::flush;
   }
   return ln;
 }

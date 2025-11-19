@@ -36,12 +36,12 @@ int main(int argc, char** argv) {
                         "regular expression matching pattern, default is all");
 
   std::string arg_basic_regex_pattern;
-  auto* opt_basic_regex = cli_fz.add_flag(
+  auto* opt_basic_regex = cli_fz.add_option(
       "-G,--basic-regexp", arg_basic_regex_pattern,
       "basic regular expression matching pattern, default is all");
 
   std::string arg_extended_regex_pattern;
-  auto* opt_extended_regex = cli_fz.add_flag(
+  auto* opt_extended_regex = cli_fz.add_option(
       "-E,--extended-regexp", arg_extended_regex_pattern,
       "extended regular expression matching pattern, default is all");
   opt_extended_regex->excludes(opt_regex_pattern);
@@ -122,6 +122,10 @@ int main(int argc, char** argv) {
   cli_fz.add_option("-y,--skip-marker", arg_skip_marker,
                     "line to print to mark skip points, default: none");
 
+  bool arg_print_regex_debug = false;
+  cli_fz.add_flag("-D,--regex-debug", arg_print_regex_debug,
+                  "print debug information for regexes and substitutions");
+
   try {
     cli_fz.parse(argc, argv);
   } catch (const CLI::ParseError& e) {
@@ -189,17 +193,30 @@ int main(int argc, char** argv) {
   params.strict_order = arg_strict_order;
   params.strict_seq = arg_strict_seq;
   params.skip_marker = arg_skip_marker;
+  params.print_regex_debug = arg_print_regex_debug;
 
   std::string* regex_str = nullptr;
   std::regex_constants::syntax_option_type syntax_opt =
       std::regex_constants::optimize;
+  if (arg_print_regex_debug) {
+    std::cerr << "Using REGEX pattern: ";
+  }
   if (!arg_basic_regex_pattern.empty()) {
+    if (arg_print_regex_debug) {
+      std::cerr << "BASIC syntax: ";
+    }
     syntax_opt = syntax_opt | std::regex_constants::basic;
     regex_str = &arg_basic_regex_pattern;
   } else if (!arg_extended_regex_pattern.empty()) {
+    if (arg_print_regex_debug) {
+      std::cerr << "EXTENDED syntax: ";
+    }
     syntax_opt = syntax_opt | std::regex_constants::extended;
     regex_str = &arg_extended_regex_pattern;
   } else {
+    if (arg_print_regex_debug) {
+      std::cerr << "ECMAScript syntax: ";
+    }
     syntax_opt = syntax_opt | std::regex_constants::ECMAScript;
     if (arg_regex_pattern.empty()) {
       arg_regex_pattern = "(.*)";
@@ -208,6 +225,12 @@ int main(int argc, char** argv) {
   }
   if (arg_ignore_case) {
     syntax_opt = syntax_opt | std::regex_constants::icase;
+    if (arg_print_regex_debug) {
+      std::cerr << "CASE-INSENSITIVE: ";
+    }
+  }
+  if (arg_print_regex_debug) {
+    std::cerr << *regex_str << std::endl;  // NOLINT(performance-avoid-endl)
   }
   try {
     params.input_regex.assign(*regex_str, syntax_opt);
@@ -218,9 +241,17 @@ int main(int argc, char** argv) {
   }
 
   if (!arg_sed_substitution.empty()) {
+    if (arg_print_regex_debug) {
+      std::cerr << "      SED substitution: " << arg_sed_substitution
+                << std::endl;  // NOLINT(performance-avoid-endl)
+    }
     params.input_regex_fmt = arg_sed_substitution;
     params.input_regex_flags = std::regex_constants::format_sed;
   } else if (!arg_ecma_substitution.empty()) {
+    if (arg_print_regex_debug) {
+      std::cerr << "      ECMAScript substitution: " << arg_ecma_substitution
+                << std::endl;  // NOLINT(performance-avoid-endl)
+    }
     params.input_regex_fmt = arg_ecma_substitution;
   }
   if (arg_no_copy) {

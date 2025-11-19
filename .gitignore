@@ -2,6 +2,7 @@
 # based on the name of the directory bazel is cloned into.
 /bazel-*
 .cache
+private_examples
 
 compile_commands.json
 dependency_issues.json

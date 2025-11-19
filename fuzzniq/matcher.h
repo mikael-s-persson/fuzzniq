@@ -36,6 +36,7 @@ struct MatcherParameters {
   bool null_data = false;
   bool strict_order = false;
   bool strict_seq = false;
+  bool print_regex_debug = false;
 };
 
 // This class maintains a short window of pending lines to be filtered
