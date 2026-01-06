@@ -1,4 +1,3 @@
-
 cc_library(
     name = "matcher",
     srcs = [
@@ -21,7 +20,6 @@ cc_test(
     deps = [
         ":matcher",
         "@com_google_googletest//:gtest_main",
-        "@fmt",
     ],
 )
 

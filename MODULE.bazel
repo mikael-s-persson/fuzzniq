@@ -2,10 +2,8 @@ module(
     name = "fuzzniq",
 )
 
-http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
 bazel_dep(name = "platforms", version = "1.0.0")
-bazel_dep(name = "googletest", version = "1.17.0.bcr.1", repo_name = "com_google_googletest")
+bazel_dep(name = "googletest", version = "1.17.0.bcr.2", repo_name = "com_google_googletest")
 
 # FMT library
 bazel_dep(name = "fmt", version = "11.0.2")
@@ -14,11 +12,11 @@ bazel_dep(name = "fmt", version = "11.0.2")
 bazel_dep(name = "cli11", version = "2.4.2")
 
 # Aspects to extract C++ metadata and fix dependency issues.
-# bazel run -c dbg @bazel_cc_meta//cc_meta:refresh_all -- -c dbg
+# bazel run -c dbg //:cc_meta_refresh_all -- -c dbg
 # bazel run -c dbg @bazel_cc_meta//cc_meta:fix_deps
 bazel_dep(name = "bazel_cc_meta", version = "0.0.0")
 git_override(
     module_name = "bazel_cc_meta",
-    commit = "21f19a91f0872c8356fa3381f463ebfb89292504",
-    remote = "https://github.com/mikael-s-persson/bazel_cc_meta.git",
+    commit = "ccabddc2a9016b3ee0a620e32ee6e71ecc8aa5f6",
+    remote = "https://github.com/mikael-s-persson/bazel_cc_meta",
 )
