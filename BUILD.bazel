@@ -4,11 +4,11 @@ make_cc_meta_deviations(
     name = "fuzzniq_cc_meta_deviations",
     deviations = {
         # gtest and gtest_main export the gtest headers and are always linked in.
-        "@com_google_googletest//:gtest": {"exports": [
+        "@googletest//:gtest": {"exports": [
             "gtest/gtest.h",
             "gmock/gmock.h",
         ]},
-        "@com_google_googletest//:gtest_main": {
+        "@googletest//:gtest_main": {
             "alwaysused": True,
             "forward_exports": True,
         },
