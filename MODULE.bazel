@@ -9,22 +9,23 @@ bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
 
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "rules_python", version = "1.7.0")
-bazel_dep(name = "rules_cc", version = "0.2.16")
+bazel_dep(name = "rules_cc", version = "0.2.17")
 bazel_dep(name = "rules_shell", version = "0.6.1")
-bazel_dep(name = "buildozer", version = "8.2.1")
+bazel_dep(name = "buildozer", version = "8.5.1")
 
 # FMT library
-bazel_dep(name = "fmt", version = "11.0.2")
+bazel_dep(name = "fmt", version = "12.1.0")
 
 # CLI11 C++ CLI library
-bazel_dep(name = "cli11", version = "2.4.2")
+#bazel_dep(name = "cli11", version = "2.6.2")
+http_archive(
+    name = "cli11",
+    integrity = "sha256-xuprLlYIs+qGF5mb1fR0IMcbLr243EdnwQNNHaV4VxE=",
+    strip_prefix = "CLI11-2.6.2",
+    urls = ["https://github.com/CLIUtils/CLI11/archive/refs/tags/v2.6.2.tar.gz"],
+)
 
 # Aspects to extract C++ metadata and fix dependency issues.
 # bazel run -c dbg //:cc_meta_refresh_all -- -c dbg
 # bazel run -c dbg @bazel_cc_meta//cc_meta:fix_deps
-http_archive(
-    name = "bazel_cc_meta",
-    integrity = "sha256-LznhQ9l2kwHgCkVwYsUJAjlyAM5WlvFrUflTR4atxbw=",
-    strip_prefix = "bazel_cc_meta-0.1.0",
-    urls = ["https://github.com/mikael-s-persson/bazel_cc_meta/archive/refs/tags/v0.1.0.tar.gz"],
-)
+bazel_dep(name = "bazel_cc_meta", version = "0.2.0")
